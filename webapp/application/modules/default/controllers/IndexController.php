@@ -12,5 +12,7 @@ class IndexController extends Zend_Controller_Action
 		
 		$model = new Default_Service_Register();
 		$this->view->form = new Default_Form_Register();
+		
+		$this->view->entier = new Default_Model_Entier(42);
 	}
 }
