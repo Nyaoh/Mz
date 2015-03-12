@@ -1,0 +1,22 @@
+<style type='text/css'>
+#gridContainer .grid .pagination a, #gridContainer .grid .pagination span {display: block; float: left; padding: 3px 14px;}
+#gridContainer .grid .pagination a {cursor: pointer;}
+#gridContainer .grid .pagination span.selected {background: #ff8800; color: #fff;}
+</style>
+
+<div class='pagination'>
+	<?php foreach ($this->pageNumberList as $pageNumber) : ?>
+		<?php if (false === $pageNumber['clickable']) : ?>
+			<span <?php echo true === $pageNumber['selected'] ? 'class="selected"' : ''; ?>>
+				<?php if (null === $pageNumber['libelle']) : ?>
+					...
+				<?php else : ?>
+					<?php echo $pageNumber['libelle']; ?>
+				<?php endif; ?>
+			</span>
+		<?php else : ?>
+			<a onclick="javascript:loadData(<?php echo (int) $pageNumber['libelle']; ?>);"><?php echo $pageNumber['libelle']; ?></a>
+		<?php endif; ?>
+	<?php endforeach; ?>
+</div>
+<div style='clear: both;'></div>
