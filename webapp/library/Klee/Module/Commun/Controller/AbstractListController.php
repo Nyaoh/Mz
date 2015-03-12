@@ -48,6 +48,20 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	protected $_checkIsUsed = false;
 	
 	/**
+	 * Liste des colonnes action.
+	 *
+	 * @var array
+	 */
+	protected $_columnActionList = array();
+	
+	/**
+	 * Nom du domaine utilisé pour la colonne {action}.
+	 * 
+	 * @var string
+	 */
+	protected $_domainForAction = 'Code';
+	
+	/**
 	 * @var string Clé servant à identifier les liens de la colonne {action} de la datatable.
 	 */
 	protected $_idLink;
@@ -65,7 +79,6 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	 * @var boolean
 	 */
 	protected $_isDelete = false;
-	protected $_isDeleteField = 'isDelete';
 	
 	/**
 	 * Est-ce qu'il y a un formulaire de filtrage des données de la liste.
@@ -80,14 +93,13 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	 * @var array
 	 */
 	protected $_filtreParams = array();
-	
+
 	/**
 	 * Est-ce qu'il est possible de mettre à jour un élément.
 	 * 
 	 * @var boolean
 	 */
 	protected $_isUpdate = true;
-	protected $_isUpdateField = 'isUpdate';
 		
 	/**
 	 * Est-ce qu'il faut ajouter la colonne {action} à la datatable.
@@ -146,7 +158,8 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 				'lastPage' 			=> $this->view->translate($prefixe . 'lastPage'),
 				'firstPage' 		=> $this->view->translate($prefixe . 'firstPage'),
 				'boutonEditer' 		=> $this->view->translate($prefixe . 'boutonEditer'),
-				'boutonSupprimer' 	=> $this->view->translate($prefixe . 'boutonSupprimer')
+				'boutonSupprimer' 	=> $this->view->translate($prefixe . 'boutonSupprimer'),
+				'boutonDupliquer' 	=> $this->view->translate($prefixe . 'boutonDupliquer'),
 				);
 				
 
@@ -179,9 +192,13 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 		}
 		
 		$criteria[Zend_Db_Select::LIMIT_COUNT] = self::MAX_ROWS;
+		if ( $this->getRequest()->getParam('export') && $this->getRequest()->getParam('export')==='csv' ) {
+			unset($criteria[Zend_Db_Select::LIMIT_COUNT]);
+		}
 		$criteria[Zend_Db_Select::LIMIT_OFFSET] = null;
 
 		$datas = $this->getList($criteria);
+		$this->setColumnActionList();
 		$aaData = $this->formatDataForList($datas);
 		$aoColumns = $this->formatColumnHeaderForList();
 		
@@ -261,6 +278,19 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	}
 	
 	/**
+	 * Retourne l'objet formulaire utilisé pour le filtre.
+	 * Méthode extraite depuis {getFormFiltreCriteria()}.
+	 *
+	 * @param Zend_Controller_Request_Abstract $request Requête.
+	 * @return Zend_Form
+	 */
+	protected function getFormFiltreObject(Zend_Controller_Request_Abstract $request) {
+		$arrayControllerName = explode('-', $request->getControllerName());
+		$instance = 'Application_Module_' . ucfirst($request->getModuleName()) . '_Forms_' . implode('', array_map('ucfirst', $arrayControllerName)) . 'Form';
+		return new $instance(null, $this->_filtreParams);
+	}
+	
+	/**
 	 * Javascript à rajouter.
 	 * 
 	 * @return string
@@ -291,7 +321,7 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	 * @return array
 	 */
 	abstract protected function getTableInfo();
-	
+
 	protected function fnRowCallback() {
 		return 'function( nRow, aData, iDisplayIndex, iDisplayIndexFull ) {}';
 	}
@@ -316,7 +346,7 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 		}
 
 		// Affichage de la colonne {action}.
-		if ($this->_isUpdate || $this->_isDelete) {
+		if (! empty($this->_columnActionList)) {
 			$tempColumnName = $prefixe . 'action';
 			$aoColumns[] = array('sTitle' => $this->view->translate($this->view->escape($tempColumnName)));
 		}
@@ -348,28 +378,17 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 		foreach ($datas as $row) {
 			$line = array();
 			foreach ($this->getTableInfo() as $columnName => $domain) {
-				if ($domain === 'DownloadLink') {
-					$row['downloadUrl'] = $this->_helper->url->url(array('action' => 'download'), null, false);
-				}
 				$line[] = $this->view->formatData($row, $columnName, $domain);
 			}
-			
-			$row[$this->_isDeleteField] = !(array_key_exists($this->_isDeleteField, $row)) ? $this->_isDelete : !$row[$this->_isDeleteField];
-			$row[$this->_isUpdateField] = !(array_key_exists($this->_isUpdateField, $row)) ? $this->_isUpdate : !$row[$this->_isUpdateField];
-			
-			// Affichage de la colonne {action}.
-			if ($row[$this->_isUpdateField]|| $row[$this->_isDeleteField]) {
-				$line[] = $this->view->formatDataAction($row, 
-						$this->_idLink, 
-						'Code', 
-						$this->getArgumentForAction($row[$this->_isUpdateField], $row[$this->_isDeleteField]));
-			} else if ($this->_isUpdate || $this->_isDelete) {
-				$line[] = '';
+
+			if (! empty($this->_columnActionList)) {
+				$argumentListForAction = $this->getArgumentListForAction();
+				$line[] = $this->view->formatDataAction($row, $this->_idLink, $this->_domainForAction, $argumentListForAction);
 			}
+
 			$aaData[] = $line;
 		}
 
-		
 		return $aaData;
 	}
 	
@@ -397,28 +416,67 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	}
 	
 	/**
-	 * Retourne un tableau avec les arguments pour la colonne action du datatable.
-	 *
-	 * @return array $arguments La liste d'arguments
+	 * Fixe les colonnes action.
+	 * 
+	 * Pour les colonnes édition et suppression, il faut fixer les paramètres {$_isUpdate} et {$_isDelete} à {TRUE}.
+	 * Il est possible de rajouter d'autres colonnes action depuis la classe enfant.
 	 */
-	private function getArgumentForAction($isUpdate, $isDelete) {
-		$arguments = array();
+	protected function setColumnActionList() {
+		$controllerListName 	= $this->getRequest()->getControllerName();
+		$controllerDetailName 	= substr($controllerListName, 0, -4) . 'detail';
 		
-		$controllerArray = explode('-', $this->getRequest()->getControllerName());
-		$controllerDetailName = implode('-', array_slice($controllerArray, 0, -1)) . '-detail';
-		
-		// Le lien remplace "-list" par "-detail" pour le nom du contrôleur.
-		if ($isUpdate) {
-			$arguments['urlEdit'] = $this->_helper->url->url(array('controller' => $controllerDetailName, 'action' => 'detail'), null, false);
-			$arguments['translateEditer'] = $this->view->translate($this->_translations['boutonEditer']);
+		if ($this->_isUpdate) {
+			$this->_columnActionList[] = array(
+				'NAME' 				=> 'edit',
+				'URL_CONTROLLER' 	=> $controllerDetailName,
+				'URL_ACTION'		=> 'detail',
+				'BUTTON_NAME'		=> 'boutonEditer',
+				'IMAGE'				=> $this->view->baseUrl() . '/static/images/picto_edit.png'
+			);
 		}
 		
-		if ($isDelete) {
-			$arguments['urlDelete'] = $this->_helper->url->url(array('controller' => $this->getRequest()->getControllerName(), 'action' => 'delete'), null, false);
-			$arguments['translateSupprimer'] = $this->view->translate($this->_translations['boutonSupprimer']);
+		if ($this->_isDelete) {
+			$this->_columnActionList[] = array(
+				'NAME' 				=> 'delete',
+				'URL_CONTROLLER' 	=> $controllerListName,
+				'URL_ACTION'		=> 'delete',
+				'BUTTON_NAME'		=> 'boutonSupprimer',
+				'IMAGE'				=> $this->view->baseUrl() . '/static/images/picto_delete.png'
+			);
+		}
+	}
+	
+	/**
+	 * Retourne un tableau avec les arguments pour la colonne {action} de la datatable.
+	 * 
+	 * @return array  
+	 */
+	private function getArgumentListForAction() {
+		$argumentList = array();
+		
+		$controllerListName 	= $this->getRequest()->getControllerName();
+		$controllerDetailName 	= substr($controllerListName, 0, -4) . 'detail';
+
+		foreach ($this->_columnActionList as $columnAction) {
+		    $module = strtolower($this->getRequest()->getModuleName());
+		    if (isset($columnAction['URL_MODULE'])) {
+		        $module = $columnAction['URL_MODULE'];
+		    }
+		    
+			$url = array('module' => $module, 'controller' => $columnAction['URL_CONTROLLER'], 'action' => $columnAction['URL_ACTION']);
+			if (isset($columnAction['OPTIONS'])) {
+				$url = array_merge($url, $columnAction['OPTIONS']);
+			}
+			
+			$argumentList[$columnAction['NAME']] = array(
+				'class'		=> $columnAction['NAME'],
+				'url' 		=> $this->_helper->url->url($url, NULL, TRUE),
+				'translate' => $this->view->translate($columnAction['BUTTON_NAME']),
+				'picto'		=> $columnAction['IMAGE']
+			);
 		}
 		
-		return $arguments;
+		return $argumentList;
 	}
 	
 	/**
@@ -428,9 +486,7 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	 */
 	private function getFormFiltreCriteria() {
 		$request = $this->getRequest();
-		$arrayControllerName = explode('-', $request->getControllerName());
-		$instance = 'Application_Module_' . ucfirst($request->getModuleName()) . '_Forms_' . implode('', array_map('ucfirst', $arrayControllerName)) . 'Form';
-		$formFiltre = new $instance(null, $this->_filtreParams);
+		$formFiltre = $this->getFormFiltreObject($request);
 		
 		$formFiltre->setDefaults($this->getRequest()->getParams());
 		
@@ -479,7 +535,7 @@ abstract class Klee_Module_Commun_Controller_AbstractListController extends Zend
 	/**
 	 * Récupération du script à insérer dans la page pour initialiser l'action {delete} de la datatable.
 	 */
-	private function getScriptForDeleteAction() {
+	protected function getScriptForDeleteAction() {
 		$variableForDeleteScript = '';
 		if ($this->_isDelete) {
 			$variableForDeleteScript = '

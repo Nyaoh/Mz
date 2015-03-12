@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Element Text principal.
+ *
+ * @author fconstantin
+ */
 class Klee_Plugin_Element_Text extends Zend_Form_Element_Text
 {
 	/**

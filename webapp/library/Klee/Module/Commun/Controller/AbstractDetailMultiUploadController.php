@@ -6,15 +6,8 @@
  * @author AMORIN
  *
  */
-abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Zend_Controller_Action
+abstract class Klee_Module_Commun_Controller_AbstractDetailMultiUploadController extends Zend_Controller_Action
 {
-    /**
-     * Est-ce que le formulaire contient un fichier à uploader.
-     *
-     * @var boolean
-     */
-    protected $_containFile = false;
-    
     /**
      * Liste des informations sur l'élément.
      * 
@@ -46,9 +39,9 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
     protected $_redirectionAfterSave = null;
     
     /**
-     * Si {null}, redirection vers le contrôleur {<nom_contrôleur>-list}.
-     * Sinon affiche message de succes.
-     *
+     * Affichage d'un message de succès après sauvegarde des données.
+     * Utilisation du composant FlashMessenger.
+     * 
      * @var string
      */
     protected $_messageSuccess = null;
@@ -67,56 +60,45 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
     // Liste des paramètres pour l'upload d'un fichier.
     // ------------------------------------------------------------------------
     
+    /**
+     * Est-ce que le formulaire contient un fichier à uploader.
+     *
+     * @var boolean
+     */
+    protected $_containFile = FALSE;
+    
+    /**
+     * Liste des éléments de type fichier dans le formulaire.
+     * 
+     * @var array
+     */
     protected $_uploadFileList = array();
     
     /**
-     * Nom de la colonne qui permet de savoir si l'élément est associé à un fichier.
-     * 
-     * @var string
-     */
-    protected $_columnIsFile = 'FIC_ID';
-    
-    /**
-     * Nom de la colonne pour le type mime du fichier.
+     * Liste des colonnes de la base de données référençant les différentes
+     * informations sur les éléments ayant pour domaine {Fichier}.
      *
-     * @var string
+     * @var array
      */
-    protected $_columnTypeMime = 'FIC_TYPE_MIME';
+    protected $_columnListFichier = array(
+    	'MIME_TYPE'	=> 'FIC_TYPE_MIME',
+    	'SIZE'		=> 'FIC_POIDS',
+    	'TITLE'		=> 'FIC_TITRE',
+    	'PATH'		=> 'FIC_CHEMIN'
+    );
     
     /**
-     * Nom de la colonne qui permet de connaître la localisation du fichier dans le répertoire /wdir.
+     * Liste des colonnes de la base de données référençant les différentes
+     * informations sur les éléments ayant pour domaine {FichierImage}.
      * 
-     * @var string
+     * @var array
      */
-    protected $_columnPath = 'FIC_CHEMIN';
-    
-    /**
-     * Identifiant de la colonne sur laquelle se base le fichier.
-     * 
-     * @var string
-     */
-    protected $_columnPrimaryKey = null;
-    
-    /**
-	 * Nom de la colonne pour la taille du fichier.
-	 * 
-	 * @var string
-	 */
-    protected $_columnSize = 'FIC_POIDS';
-    
-    /**
-     * Nom de la colonne qui permet de connaître le titre du fichier.
-     * 
-     * @var string
-     */
-    protected $_columnTitle = 'FIC_TITRE';
-    
-    /**
-     * Nom de la colonne dans laquelle on stock le fichier (blob).
-     *
-     * @var string
-     */
-    protected $_columnBlob = 'FII_FICHIER';
+    protected $_columnListFichierImage = array(
+    	'MIME_TYPE'	=> 'FII_TYPE_MIME',
+    	'SIZE'		=> 'FII_POIDS',
+    	'TITLE'		=> 'FII_TITRE',
+    	'BLOB'		=> 'FII_FICHIER'
+    );
     
     /**
      * Nom du dossier vers lequel on upload.
@@ -148,6 +130,8 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	 * @see Zend_Controller_Action::init()
 	 */
 	public function init() {
+		$url = $this->_helper->url->url(array('module' => 'administration', 'controller' => 'actualite-list', 'action' => 'index'), NULL, TRUE);
+
 	    if ($this->getRequest()->isXmlHttpRequest()) {
 	        $this->getHelper('viewRenderer')->setNoRender();
 	        $this->getHelper('layout')->disableLayout();
@@ -183,6 +167,10 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 		
 	}
 	
+	// ------------------------------------------------------------------------
+	// Public methods.
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Action {detail}.
 	 * Affichage des données.
@@ -198,12 +186,12 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	 * Téléchargement d'un fichier.
 	 */
 	public function downloadAction() {
-		$idElement = $this->getRequest()->get('idElement');
-		$element = $this->get($idElement);
-	
+		$idFile = $this->getRequest()->getParam('idFile');
+		$fichier = Klee_Facade_Fichier::getServiceFichier()->getFichier($idFile);
+
 		// get the absolute path of the requested file
-		$filepath = realpath(Zend_Registry::get('uploadDir') . $this->_downloadFolder . '/' . $element[$this->_columnPath]);
-	
+		$filepath = realpath(Zend_Registry::get('uploadDir') . $this->_downloadFolder . '/' . $fichier[$this->_columnListFichier['PATH']]);
+
 		if ((false !== $filepath) && is_file($filepath)) {
 	
 			$this->_helper->layout()->disableLayout();
@@ -253,28 +241,39 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 // 		$isFile = false;
 		try {
 			if ($form->isValidPartial($request->getPost())) {
+				$fileInfoList = array();
 				$values = array();
-
-				$fileInfo = array();
+				
 				if ($this->_containFile) {
-					foreach ($this->_uploadFileList as $uploadFile) {
-						$fileInfo = $this->doProcessUploadFile($form, $uploadFile);
+					$values = $this->doCheckUploadFileList($form);
+					
+// 					Zend_Debug::dump($this->_uploadFileList);die;
+// 					foreach ($this->_uploadFileList as $uploadFile) {
+// 						$fileInfo = $this->doProcessUploadFile($form, $uploadFile);
 						
-// 						Zend_Debug::dump($fileInfo);
+// // 						Zend_Debug::dump($fileInfo);
 
-						if (! empty($fileInfo)) {
-							$values['FILE_LIST'][$uploadFile['COLUMN_IS_FILE']] = array(
-								'IS_NEW_FILE' 	=> TRUE,
-								'INFO'			=> $fileInfo	
-							);
-// 							$isFile = true;
-						}
-					}
+// 						if (! empty($fileInfo)) {
+// 							$values['FILE_LIST'][$uploadFile['COLUMN_IS_FILE']] = array(
+// 								'IS_NEW_FILE' 	=> TRUE,
+// 								'INFO'			=> $fileInfo	
+// 							);
+// // 							$isFile = true;
+// 						}
+// 					}
 				}
 				
 				// /!\ : A faire après avoir géré le fichier.
 				$values += $form->getValues();
-
+				
+// 				if (FALSE === $form->hasErrors()) {
+// 					$form->clearErrorMessages();
+// 				}
+				
+// 				Zend_debug::dump($form->getErrorMessages());
+// 				Zend_debug::dump('---');
+// 				Zend_debug::dump($form->getErrors());
+				
 // 				Zend_Debug::dump($values);
 // 				die;
 				
@@ -286,7 +285,7 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 					$this->_redirect($this->_helper->url->url(array('module' => $request->getModuleName(), 'controller' => implode('-', array_slice($controllerNameTab, 0, -1)) . '-list', 'action' => 'index'), null, true));
 				} else {
 				    if (!is_null($this->_messageSuccess)) {
-				    	$this->addMessage($this->_messageSuccess);	
+				    	$this->addMessage($this->_messageSuccess);
 				    }			    
 					$this->_redirect('/' . strtolower(Klee_Util_Context::getLocale()) . $this->_redirectionAfterSave);
 				}			
@@ -318,6 +317,98 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 		$this->render($this->_viewDetail['action'], $this->_viewDetail['name'], $this->_viewDetail['noController']);
 	}
 	
+	/**
+	 * @param Zend_Form $form
+	 * @return multitype:
+	 */
+	private function doCheckUploadFileList(Zend_Form $form) {
+		$exceptionPool = new Klee_Util_UserException();
+		$fileInfoList = array();
+		
+		foreach ($this->_uploadFileList as $file) {
+			$fileInfo = $this->doCheckUploadFile($form, $file, $exceptionPool);
+			if (FALSE === empty($fileInfo)) {
+				$fileInfoList[$file['NAME']] = $fileInfo;
+			}
+		}
+		
+		$exceptionPool->throwIfError();
+		
+		return $fileInfoList;
+	}
+	
+	/**
+	 * @param Zend_Form $form
+	 * @param unknown $file
+	 * @param Klee_Util_UserException $exceptionPool
+	 */
+	private function doCheckUploadFile(Zend_Form $form, $file, Klee_Util_UserException $exceptionPool) {
+		$upload = $form->$file['NAME']->getTransferAdapter();
+
+		$form->$file['NAME']->removeValidator('Upload');
+
+		if (FALSE === $upload->isUploaded($file['NAME'])) {
+			if ($form->$file['NAME']->isRequired() && '0' === $form->$file['HIDDEN_NAME']->getValue()) {
+				$exceptionPool->addMessage('validator.notEmpty.isEmpty', array(), $file['NAME']);
+			}
+			return array();
+		} else {
+			if (FALSE === $upload->isValid($file['NAME'])) {
+				foreach (array_values($upload->getMessages()) as $message) {
+					$exceptionPool->addMessage(NULL, array(), $file['NAME']);
+					return array();
+				}
+			}
+		}
+
+		if (FALSE === $file['IS_BLOB']) {
+			$currentDate = Klee_Util_Date::getCurrentDate();
+			
+			$columnPath = substr($currentDate, 0, 4) . '/' . substr($currentDate, 5, 2);
+			$chemin = Zend_Registry::get('uploadDir');
+			if (NULL != $this->_downloadFolder) {
+				$chemin .= $this->_downloadFolder . '/' . $columnPath;
+			} else {
+				$chemin .= $columnPath;
+			}
+
+			if (FALSE === is_dir($chemin)) {
+				mkdir($chemin, 0755, TRUE);
+			}
+
+			$upload->setDestination($chemin);
+		}
+		
+		$fileInfo = $upload->getFileInfo($file['NAME']);
+		$title = $fileInfo[$file['NAME']]['name'];
+
+		if (FALSE === $upload->receive($file['NAME'])) {
+			throw new Klee_Util_UserException('erreur.message.fichier.receiveError');
+		}
+
+		$fileInfo 	= $upload->getFileInfo($file['NAME']);
+		$mimeType 	= $upload->getMimeType($file['NAME']);
+		$size 		= $fileInfo[$file['NAME']]['size'];
+		
+		if (TRUE === $file['IS_BLOB']) {
+			$result = array(
+				$this->_columnListFichierImage['MIME_TYPE'] => $mimeType,
+				$this->_columnListFichierImage['SIZE']		=> $size,
+				$this->_columnListFichierImage['TITLE']		=> $title,
+				$this->_columnListFichierImage['BLOB']		=> file_get_contents($fileInfo[$file['NAME']]['tmp_name'])
+			);
+		} else {
+			$result = array(
+				$this->_columnListFichier['MIME_TYPE']		=> $mimeType,
+				$this->_columnListFichier['SIZE']			=> $size,
+				$this->_columnListFichier['TITLE']			=> $title,
+				$this->_columnListFichier['PATH']			=> $columnPath . '/' . $fileInfo[$file['NAME']]['name']
+			);
+		}
+		
+		return $result;
+	}
+	
 	protected function addMessage($message) {
 	    $flashMessenger = $this->_helper->getHelper('FlashMessenger');
 	    $flashMessenger->addMessage($message);
@@ -327,8 +418,8 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	 * Action permettant d'afficher une image stockée en base.
 	 */
 	public function showAction() {
-		$idElement = $this->getRequest()->getParam('idElement', null);
-		$element = Application_Facade_Administration::getServiceFichierRead()->getFichierImage($idElement);
+		$idFile = $this->getRequest()->getParam('idFile', NULL);
+		$fichierImage = Klee_Facade_Fichier::getServiceFichier()->getFichierImage($idFile);
 
 		$response = $this->getResponse();
 
@@ -340,10 +431,10 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 				->clearBody();
 	
 		$response
-				->setHeader('Content-Type', $element['FII_TYPE_MIME'])
+				->setHeader('Content-Type', $fichierImage['FII_TYPE_MIME'])
 				->setHeader('Content-Transfer-Encoding', 'Binary')
-				->setHeader('Content-Length', $element['FII_POIDS'])
-				->setBody($element['FII_FICHIER']);
+				->setHeader('Content-Length', $fichierImage['FII_POIDS'])
+				->setBody($fichierImage['FII_FICHIER']);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -355,6 +446,19 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	 * @return array
 	 */
 	abstract protected function get($idElement);
+	
+	/**
+	 * Retourne l'objet formulaire utilisé pour le détail.
+	 * Méthode extraite depuis {getForm()}.
+	 *
+	 * @param Zend_Controller_Request_Abstract $request Requête.
+	 * @return Zend_Form
+	 */
+	protected function getFormObject(Zend_Controller_Request_Abstract $request) {
+		$arrayControllerName = explode('-', $request->getControllerName());
+		$instance = 'Application_Module_' . ucfirst($request->getModuleName()) . '_Forms_' . implode('', array_map('ucfirst', $arrayControllerName)) . 'Form';
+		return new $instance(null, $this->_formParams);
+	}
 	
 	/**
 	 * Retourne l'idElement à utiliser pour l'action détail.
@@ -421,16 +525,28 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 		
 		if (! empty($this->_uploadFileList)) {
 			foreach ($this->_uploadFileList as $uploadFile) {
+				if (! isset($uploadFile['HIDDEN_NAME'])) {
+					continue;
+				}
+				
 				// Ajout d'un flag au niveau du formulaire pour indiquer la présence ou non du fichier.
-				$isFile = $this->_element[$uploadFile['COLUMN_IS_FILE']] !== NULL ? 1 : 0;
-				$form->addElement('hidden', $uploadFile['FORM_IS_FILE'], array('value' => $isFile));
+				$isFile = $this->_element[$uploadFile['NAME']] !== NULL ? 1 : 0;
+				$form->addElement('hidden', $uploadFile['HIDDEN_NAME'], array('value' => $isFile));
 					
-				// Script permettant de confirmer l'écrasement d'un fichier déjà uploadé.
-				// $scriptConfirmationUploadNouveauFichier = 'initConfirmationUploadNouveauFichier();';
-				// @TODO: gestion de la confirmation d'upload d'un nouveau fichier.
+// 				// Script permettant de confirmer l'écrasement d'un fichier déjà uploadé.
+// 				// $scriptConfirmationUploadNouveauFichier = 'initConfirmationUploadNouveauFichier();';
+// 				// @TODO: gestion de la confirmation d'upload d'un nouveau fichier.
 					
-				// $scriptDownloadFile = $this->getFileScript();
-				// @TODO: gestion du téléchargement ou de l'affichage des fichiers déjà enregistrés.
+				// Gestion de l'affichage des images.
+				if (NULL !== $this->_element && NULL !== $this->_element[$uploadFile['NAME']] && TRUE === $uploadFile['IS_BLOB']) {
+					$scriptDownloadFile .= 'showFileImage("' . $uploadFile['NAME'] . '", "' . $this->_helper->url->url(array('action' => 'show', 'idFile' => $this->_element[$uploadFile['NAME']])) . '");';
+				}
+				
+				// Gestion du téléchargement des images.
+				// @TODO
+				
+// 				$scriptDownloadFile .= $this->getFileScript();
+// 				// @TODO: gestion du téléchargement ou de l'affichage des fichiers déjà enregistrés.
 			}
 		}
 		 
@@ -447,94 +563,6 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	}
 	
 	/**
-	 * Processus d'upload d'un fichier.
-	 * Retourne les infos sur le fichier.
-	 * 
-	 * @param Zend_Form $form Formulaire.
-	 * @param boolean $isFile Est-ce qu'il y a déjà un fichier.
-	 * @return array
-	 */
-	private function doProcessUploadFile(Zend_Form $form, array $fileElement) {
-		//$elementFilename = $this->_elementFilename;
-		//$upload = $form->$elementFilename->getTransferAdapter();
-		$upload = $form->$fileElement['COLUMN_IS_FILE']->getTransferAdapter();
-		
-// 		Zend_Debug::dump($upload);
-// 		die;
-
-		// Cas où il n'y a pas de fichier d'uploadé, on passe tout le processus de vérification.
-		$uploadInfo = $upload->getFileElement($fileElement['COLUMN_IS_FILE']);
-		Zend_Debug::dump($uploadInfo);
-// 		die;
-		if ('' === $uploadInfo['name']) {
-			if ($form->$fileElement['FORM_IS_FILE']) {
-				return array();
-			} else {
-				throw new Klee_Util_UserException('emptyFile', array(), $fileElement['COLUMN_IS_FILE']);
-			}
-		}
-		
-		$error = FALSE;
-		foreach ($upload->getValidators() as $validator) {
-			Zend_Debug::dump($validator->isValid('FIC_ID'));
-			die;
-		}
-
-// 		if (FALSE === $fileElement['IS_BLOB']) {
-// 			// Chemin vers lequel le fichier sera uploadé.
-// 			// Du type: /wdir/files/document/<$this->_downloadFolder>/<annee>/<mois>
-// 			$currentDate = Klee_Util_Date::getCurrentDate();
-// 			$downloadFolder = $this->_downloadFolder;
-// 			if ($downloadFolder !== '') {
-// 				$downloadFolder .= '/';
-// 			}
-			
-// 			// Stocké dans une arborescence de la forme : {/AAAA/MM/NOM_FICHIER}
-// 			$colPath = substr($currentDate, 0, 4) . '/' . substr($currentDate, 5, 2);
-// 			$dirPath = Zend_Registry::get('uploadDir') . $downloadFolder . $colPath;
-	
-// 			// Création des dossiers si ceux-ci n'existent pas.
-// 			if (! is_dir($dirPath)) {
-// 				mkdir($dirPath, 0755, true);
-// 			}
-	
-// 			$upload->setDestination(realpath($dirPath));
-// 		}
-
-// 		$fileInfo = $upload->getFileInfo();
-// 		$title = $fileInfo[$fileElement['COLUMN_IS_FILE']]['name'];
-		
-// 		if (! $upload->isValid()) {
-// 			Zend_Debug::dump($upload->hasErrors());
-// 			die;
-// 		    throw new Klee_Util_UserException('erreur.message.fichier.notValid');
-// 		}
-
-// 		if (! $upload->receive()) {
-// 			Klee_Util_CustomLog::error("erreur.message.fichier.receiveError<br />" . print_r($upload->getMessages(), 1));
-// 			throw new Klee_Util_UserException('erreur.message.fichier.receiveError');
-// 		}
-		
-// 		$fileInfo = $upload->getFileInfo();
-		
-// 		$result = array(
-// 			$this->_columnTypeMime 	=> $upload->getMimeType(),
-// 			$this->_columnSize 		=> $fileInfo[$fileElement['COLUMN_IS_FILE']]['size'],
-// 			$this->_columnTitle 	=> $title
-// 		);
-		
-// 		if ($fileElement['IS_BLOB']) {
-// 			$result[$fileElement['COLUMN_BLOB']] = file_get_contents($fileInfo[$fileElement['COLUMN_IS_FILE']]['tmp_name']);
-// 		} else {
-// 			$result[$fileElement['COLUMN_PATH']] = $colPath . '/' . $fileInfo[$fileElement['COLUMN_IS_FILE']]['name'];
-// 		}
-
-		$result = array();
-
-		return $result;
-	}
-	
-	/**
 	 * Retourne un objet formulaire.
 	 * 
 	 * @param Zend_ControllerRequest $request Objet requête.
@@ -543,14 +571,11 @@ abstract class Klee_Module_Commun_Controller_Abstract2DetailController extends Z
 	private function getForm($request) {
 		$arrayControllerName = explode('-', $request->getControllerName());
 		$instance = 'Application_Module_' . ucfirst($request->getModuleName()) . '_Forms_' . implode('', array_map('ucfirst', $arrayControllerName)) . 'Form';
-		$form = new $instance(null, $this->_formParams);
+		$form = $this->getFormObject($request);
 		$form->setAttrib('id', 'formDetail');
 		
 		if ($this->_containFile) {
 			$form->addElement('hidden', 'IS_FILE', array('value' => 0));
-// 			if ($request->getParam('IS_FILE') && $request->getParam('IS_FILE') === '1') {
-// 				$form->getElement($this->_elementFilename)->setRequired(false);
-// 			}
 		}
 		
 		// Ajout d'un décorateur pour placer les messages d'erreurs au dessus du formulaire.

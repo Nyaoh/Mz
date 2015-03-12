@@ -74,14 +74,16 @@ final class Klee_Service_Manager
      *
      * @param string $serviceName nom du service à instancier
      * @param string $module nom du module dans lequel on trouve ce service
+     * @param boolean $isSocle [OPTIONAL] Par défaut à {FALSE}. {TRUE} s'il faut récupérer un service du socle, {FALSE} sinon.
      * @return Application_Model_Services_Manager
      * @throws Zend_Exception
      */
-    public static function getService($serviceName, $module = '') {
+    public static function getService($serviceName, $module = '', $isSocle = FALSE) {
         if (gettype($serviceName) !== 'string') {
             throw new Zend_Exception('getService n\'accepte qu\'une variable string');
         }
 
+        $namespace = TRUE === $isSocle ? 'Klee' : 'Application'; 
         $pathServiceModule = '_';
 
         if ($module !== '') {
@@ -98,38 +100,52 @@ final class Klee_Service_Manager
             }
         }
 
-        $serviceClassName = self::resolveName($serviceName, $pathServiceModule);
+        $serviceClassName = self::resolveName($serviceName, $pathServiceModule, $isSocle);
+        
+        $iService = $namespace . $pathServiceModule;
+        if (TRUE === $isSocle) {
+        	$iService .= 'Service_Interface';
+        } else {
+        	$iService .= 'Services_Interfaces';
+        }
+        $iService .= '_I' . $serviceName;
 
-        if (! in_array(
-            	'Application' . $pathServiceModule . 'Services_Interfaces_I' . $serviceName,
-            	class_implements($serviceClassName))) {
+        if (! in_array($iService, class_implements($serviceClassName))) {
             throw new Zend_Exception(
-                $serviceClassName . ' n\'impl&eacute;mente pas ' . 'Application' . $pathServiceModule . 'Services_Interfaces_I' . $serviceName);
+                $serviceClassName . ' n\'impl&eacute;mente pas ' . $iService);
     	}
 
     	return new Klee_Service_Proxy($serviceClassName, $serviceName);
 	}
 
 	/**
-	 *
 	 * Resoud l'association entre le nom du service et la classe à instancier
 	 * Dépendance.
 	 *
 	 * @param string $serviceName nom du service
 	 * @param string $pathServiceModule nom du chemin au service
+	 * @param boolean $isSocle {TRUE} s'il faut récupérer un service du socle, {FALSE} sinon.
 	 * @return string nom de la classe à instancier
 	 * @throws Zend_Exception
 	 */
-	private static function resolveName($serviceName, $pathServiceModule) {
+	private static function resolveName($serviceName, $pathServiceModule, $isSocle) {
 	    $options = self::$_servicesOptions;
-
+	    
+	    $namespace = TRUE === $isSocle ? 'Klee' : 'Application';
+	    $service = $namespace . $pathServiceModule;
+	    if (TRUE === $isSocle) {
+	    	$service .= 'Service_Implementation';
+	    } else {
+	    	$service .= 'Services_Implementations';
+	    }
+	    $service .= '_' . $serviceName;
+	    
 	    if (isset($options[$serviceName]['className'])) {
 	        return $options[$serviceName]['className'];
-	    } elseif (class_exists('Application' . $pathServiceModule . 'Services_Implementations_' . $serviceName)) {
-	        return 'Application' . $pathServiceModule . 'Services_Implementations_' . $serviceName;
+	    } elseif (class_exists($service)) {
+	        return $service;
 	    } else {
-	        throw new Zend_Exception(
-	            'Application' . $pathServiceModule . 'Services_Implementations_' . $serviceName . ' n\'existe pas');
+	        throw new Zend_Exception($service . ' n\'existe pas');
 	    }
 	}
 }

@@ -37,8 +37,6 @@ class Klee_Service_Broker_GenericBroker implements Klee_Service_Broker_IBroker
 				Klee_Util_CustomCacheManager::save($data, $this->_tableName);
 			}
 			$this->_metadata = $data;
-			
-			Zend_Debug::dump($this->_metadata);die;
 		}
 	}
 

@@ -24,7 +24,7 @@ class Klee_View_Helper_ListDetailView extends Zend_View_Helper_Abstract
     public function showDataTable() {
         $xhtml = '';
         
-        $xhtml .= 	'<div style="width: 1125px;">'
+        $xhtml .= 	'<div class="datatable-width">'
         		.		'<table cellpadding="0" cellspacing="0" border="0" class="display gray-table" id="dashboard-table"></table>'
         		. 	'</div>';
         
@@ -76,6 +76,39 @@ class Klee_View_Helper_ListDetailView extends Zend_View_Helper_Abstract
     				.	'</div>';
     	
     	return $xhtml;
+    }
+    
+    public function getDialogConfirmation(array $options) {
+    	$xhtml = '
+    		<div id="dialog-confirm-' . $options['BUTTON_NAME'] . '" title="' . $options['TITLE'] . '" style="display: none;">
+    			<p>' . $options['MESSAGE_CONFIRMATION'] . '</p>
+    		</div>
+    	';
+    	
+    	$script = '
+    		<script type="text/javascript">
+    			jQuery(document).ready(function() {
+	    			jQuery("#' . $options['BUTTON_NAME'] . '").on("click", function(event) {
+	    				event.preventDefault();
+	    					
+	    				jQuery("#dialog-confirm-' . $options['BUTTON_NAME'] . '").dialog({
+			    			modal: true,
+			    			resizable: true,
+			    			buttons: {
+			    				"' . $options['BUTTON_OK'] . '": function() {
+			    					document.location.href = "' . $options['URL_REDIRECTION'] . '";
+			    				},
+			    				"' . $options['BUTTON_ANNULER'] . '": function() {
+			    					jQuery(this).dialog("close");
+			    				}
+			    			}
+			    		});
+	    			});
+			    });
+	    	</script>
+    	';
+    	
+    	return $xhtml . $script;
     }
     
     /**

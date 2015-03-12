@@ -30,26 +30,18 @@ abstract class Klee_Model_Domain_Abstract implements Klee_Model_Domain_Interface
 		if (! array_key_exists($field, $data)) {
 			throw new Zend_Exception("$field n'existe pas.");
 		}
-	
-		$compteAction = 0;
 
 		$action = '';
-
-		if (isset($arguments['urlEdit']) && !is_null($arguments['urlEdit'])) {
-			$action .= 	'<a href="' . $arguments['urlEdit'] . '/idElement/' . $data[$field] . '">'
-					.		'<img src="' . $viewRenderer->view->baseUrl() . '/static/images/picto_edit.png" title="' . $arguments['translateEditer'] . '" alt="' . $arguments['translateEditer'] . '" />'
-							.	'</a>';
-			$compteAction ++;
-		}
 		
-		if (isset($arguments['urlDelete']) && !is_null($arguments['urlDelete'])) {
-			$action .= 	'&nbsp;<a href="' . $arguments['urlDelete'] . '/idElement/' . $data[$field] . '" class="delete" element="' . $data[$field] . '">'
-					.		'<img src="' . $viewRenderer->view->baseUrl() . '/static/images/picto_delete.png" title= "' . $arguments['translateSupprimer'] . '" alt="' . $arguments['translateSupprimer'] . '" />'
-							.	'</a>';
-			$compteAction ++;
+		foreach ($arguments as $argument) {
+			$action .= '
+				<a href="' . $argument['url'] . '/idElement/' . $data[$field] . '" class="' . $argument['class'] . '" element="' . $data[$field] . '">
+					<img src="' . $argument['picto'] . '" title="' . $argument['translate'] . '" alt="' . $argument['translate'] . '" />
+				</a>
+			';
 		}
 	
-		$actionWithSpan = '<span class="action'. $compteAction .'">' . $action . '</span>';
+		$actionWithSpan = '<span>' . $action . '</span>';
 
 		return $actionWithSpan;
 	}

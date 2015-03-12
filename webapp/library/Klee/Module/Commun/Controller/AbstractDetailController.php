@@ -196,11 +196,11 @@ abstract class Klee_Module_Commun_Controller_AbstractDetailController extends Ze
 	 * Téléchargement d'un fichier.
 	 */
 	public function downloadAction() {
-		$idElement = $this->getRequest()->get('idElement');
-		$element = $this->get($idElement);
+		$idFile = $this->getRequest()->get('idElement');
+		$file = $this->getFile($idFile);
 	
 		// get the absolute path of the requested file
-		$filepath = realpath(Zend_Registry::get('uploadDir') . $this->_downloadFolder . '/' . $element[$this->_columnPath]);
+		$filepath = realpath(Zend_Registry::get('uploadDir') . $this->_downloadFolder . '/' . $file[$this->_columnPath]);
 	
 		if ((false !== $filepath) && is_file($filepath)) {
 	
@@ -345,6 +345,16 @@ abstract class Klee_Module_Commun_Controller_AbstractDetailController extends Ze
 	abstract protected function get($idElement);
 	
 	/**
+	 * Retourne le fichier à partir de {$idFile}, sinon {NULL}.
+	 * 
+	 * @param int $idFile Identifiant du fichier.
+	 * @return array|NULL
+	 */
+	protected function getFile($idFile) {
+		return Klee_Facade_Fichier::getServiceFichier()->getFichier($idFile);
+	}
+	
+	/**
 	 * Retourne l'idElement à utiliser pour l'action détail.
 	 * 
 	 * @return NULL
@@ -398,6 +408,7 @@ abstract class Klee_Module_Commun_Controller_AbstractDetailController extends Ze
 		
 		if (! is_null($idElement)) {
 			$this->_element = $this->get($idElement);
+			//$this->checkRight($this->_element);
 		  
 			$form->setDefaults($this->_element);
 			 

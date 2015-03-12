@@ -68,7 +68,7 @@ class Klee_Util_Context
 	 * @param string $locale [OPTIONAL] Par défaut à {NULL}. Locale courante.
 	 */
 	public static function setLocale($locale = null) {
-		if ($locale === '00' || is_null($locale)) {
+		if ($locale === '00' || is_null($locale) || 'static' === $locale) {
 			self::$_locale = 'fr';
 		} else {
 			self::$_locale = $locale;

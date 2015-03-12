@@ -35,7 +35,7 @@ class Klee_Plugin_Element_Select extends Zend_Form_Element_Select
 	 */
 	public function init() {
 		if (! is_null($this->getDomain())) {
-			$this->_domainInterface = $this->loadDomainInterface();
+			$this->_domainInterface = Klee_Plugin_Element_ElementHelper::loadDomainInterface($this->getDomain());
 			$this->_domainInterface->initElement($this);
 		}
 	}
