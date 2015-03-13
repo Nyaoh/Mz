@@ -9,8 +9,7 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
      */
     protected function _initView() {
         $view = new Zend_View();
-        $view->headMeta()
-             ->appendHttpEquiv('Content-Type', 'text/html; charset=UTF-8');
+        $view->headMeta()->appendHttpEquiv('Content-Type', 'text/html; charset=UTF-8');
 
 		Zend_Controller_Action_HelperBroker::getStaticHelper('ViewRenderer')->setView($view);
 
