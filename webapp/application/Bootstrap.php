@@ -14,7 +14,7 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
 		Zend_Controller_Action_HelperBroker::getStaticHelper('ViewRenderer')->setView($view);
 
 		// Ajout d'un chemin vers le dossier d'helper.
-//         $view->addHelperPath(APPLICATION_PATH . '/../library/Klee/Module/Commun/View/Helper', 'Klee_View_Helper_');
+        $view->addHelperPath(APPLICATION_PATH . '/../library/Klee/Module/Commun/View/Helper', 'Klee_View_Helper_');
 //         $view->addHelperPath(APPLICATION_PATH . '/modules/Commun/views/helpers', 'Application_View_Helper_');
         
         // Fixe la méthode permettant d'échapper les données.
@@ -29,6 +29,17 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
         return $view;
     }
     
+//     /**
+//      * Initialisation du resourceLoader.
+//      */
+//     protected function _initDefaultResourceTypes() {
+//     	$resourceLoader = $this->getResourceLoader();
+// //     	$resourceLoader->addResourceType('util', 'utils/', 'Util');
+// //     	$resourceLoader->addResourceType('module', 'modules/', 'Module');
+// //     	$resourceLoader->addResourceType('facade', 'facades/', 'Facade');
+//     	$resourceLoader->addResourceType('model', 'models/', 'Model');
+//     }
+    
     /**
      * Initialisation des routes.
      */
@@ -41,6 +52,14 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
     	
     	// Ajout des routes au routeur.
     	$router->addConfig($config, 'routes');
+    }
+    
+    protected function _initController() {
+    	$front = Zend_Controller_Front::getInstance();
+    	$front->setControllerDirectory(array(
+    			'default' 	=> APPLICATION_PATH . '/modules/default/controllers',
+    			'example'	=> APPLICATION_PATH . '/modules/example/controllers'
+    	));
     }
 }
 
