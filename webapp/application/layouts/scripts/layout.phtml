@@ -1,6 +1,25 @@
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!doctype html>
+<?php $request = Zend_Controller_Front::getInstance()->getRequest(); ?>
+<html lang="fr">
 	<head>
+		<meta charset="utf-8" />
+		<meta name="description" content="Socle" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		
 		<title>Socle</title>
+		
+		<?php 
+			$isError = $request->getControllerName() === 'error';
+			
+			$this->headLink()->prependStylesheet($this->baseUrl() . '/static/css/app.css', 'screen');
+			
+			$this->headScript()->prependFile($this->baseUrl() . '/static/js/jquery-1.11.2.min.js');
+			
+			echo $this->headLink();
+			if (! $isError) {
+				echo $this->headScript();
+			}
+		?>
 	</head>
 
 	<body>
