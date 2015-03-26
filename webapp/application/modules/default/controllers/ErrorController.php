@@ -55,7 +55,7 @@ class ErrorController extends Zend_Controller_Action
 			$id = 'ERR' . md5(uniqid());
 			$message = "\n\n" . $id .  "\n\n" . $this->view->message . "\n" . $errors->exception->getMessage() . "\nParamètres : " . print_r($params, true);
             $log->log($message, $priority);
-            
+
             if ($errors->type == Klee_Plugin_Main::USER_EXCEPTION) {
             	// Envoi d'un mail
             	$mailMessage = Klee_Util_Date::getCurrentDatetime() . $message;

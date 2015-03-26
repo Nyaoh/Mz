@@ -72,9 +72,6 @@ class Klee_Plugin_Main extends Zend_Controller_Plugin_ErrorHandler
 	 */
 	protected function _handleError(Zend_Controller_Request_Abstract $request) {
 		$frontController = Zend_Controller_Front::getInstance();
-		if ($frontController->getParam('noErrorHandler')) {
-			return;
-		}
 	
 		$response = $this->getResponse();
 	
@@ -122,7 +119,6 @@ class Klee_Plugin_Main extends Zend_Controller_Plugin_ErrorHandler
 					$error->type = self::EXCEPTION_OTHER;
 					break;
 			}
-	
 			// Keep a copy of the original request
 			$error->request = clone $request;
 	

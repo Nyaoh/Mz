@@ -4,7 +4,7 @@ class Example_ConsolidationController extends Klee_Controller_AbstractController
 {
 	public function indexAction() {
 		$message = 'access.denied';
-		throw new Zend_Controller_Action_Exception($message, 500);
+// 		throw new Zend_Controller_Action_Exception($message, 500);
 
 		throw new Klee_Util_UserException('test');
 	}
