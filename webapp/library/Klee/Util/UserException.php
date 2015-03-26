@@ -70,7 +70,8 @@ class Klee_Util_UserException extends Zend_Exception
      * @param string $categorie Catégorie de l'erreur.
      */
     public function addMessage($codeErreur, $params = array(), $fieldName = null, $categorie = null) {
-        $msg = vsprintf(Zend_Registry::get('Zend_Translate')->translate($codeErreur), $params);
+//         $msg = vsprintf(Zend_Registry::get('Zend_Translate')->translate($codeErreur), $params);
+		$msg = $codeErreur;
         if (!$this->hasMessages()) {
         	$this->_firstMsg = $msg;
         }
