@@ -34,6 +34,11 @@ class ErrorController extends Zend_Controller_Action
                 $priority = Zend_Log::NOTICE;
                 $this->view->message = 'Page not found';
                 break;
+                // @TODO: créer une classe dans la librairie qui hérite de la classe Zend_Controller_Plugin_ErrorHandler.
+            case Zend_Controller_Plugin_ErrorHandler::USER_EXCEPTION:
+            	$this->view->message = 'User exception';
+            	$priority = Zend_Log::ERR;
+            	break;
             default:
                 // application error
                 $this->getResponse()->setHttpResponseCode(500);
@@ -45,8 +50,17 @@ class ErrorController extends Zend_Controller_Action
         // Log exception, if logger available
         $log = $this->getLog();
         if (isset($log) && $log != null) {
-            $log->log($this->view->message, $priority, $errors->exception);
-            $log->log('Request Parameters', $priority, $errors->request->getParams());
+			$params = $errors->request->getParams();
+			
+			$id = 'ERR' . md5(uniqid());
+			$message = "\n\n" . $id .  "\n\n" . $this->view->message . "\n" . $errors->exception->getMessage() . "\nParamètres : " . print_r($params, true);
+            $log->log($message, $priority);
+            
+            if ($errors->type == Zend_Controller_Plugin_ErrorHandler::USER_EXCEPTION) {
+            	// Envoi d'un mail
+            	$mailMessage = Klee_Util_Date::getCurrentDatetime() . $message;
+            	Klee_Util_Mail::envoiMail('socle@kleegroup.com', 'Socle', 'alexis.morin@kleegroup.com', '[Socle]', "<pre>" . $mailMessage . "</pre>");
+            }  
         }
 
         // conditionally display exceptions
@@ -54,7 +68,7 @@ class ErrorController extends Zend_Controller_Action
             $this->view->exception = $errors->exception;
         }
 
-        $this->view->request   = $errors->request;
+        $this->view->request = $errors->request;
     }
 
     /**
