@@ -26,16 +26,16 @@ class ErrorController extends Zend_Controller_Action
         }
 
         switch ($errors->type) {
-            case Zend_Controller_Plugin_ErrorHandler::EXCEPTION_NO_ROUTE:
-            case Zend_Controller_Plugin_ErrorHandler::EXCEPTION_NO_CONTROLLER:
-            case Zend_Controller_Plugin_ErrorHandler::EXCEPTION_NO_ACTION:
+            case Klee_Plugin_Main::EXCEPTION_NO_ROUTE:
+            case Klee_Plugin_Main::EXCEPTION_NO_CONTROLLER:
+            case Klee_Plugin_Main::EXCEPTION_NO_ACTION:
                 // 404 error -- controller or action not found
                 $this->getResponse()->setHttpResponseCode(404);
                 $priority = Zend_Log::NOTICE;
                 $this->view->message = 'Page not found';
                 break;
                 // @TODO: créer une classe dans la librairie qui hérite de la classe Zend_Controller_Plugin_ErrorHandler.
-            case Zend_Controller_Plugin_ErrorHandler::USER_EXCEPTION:
+            case Klee_Plugin_Main::USER_EXCEPTION:
             	$this->view->message = 'User exception';
             	$priority = Zend_Log::ERR;
             	break;
@@ -56,7 +56,7 @@ class ErrorController extends Zend_Controller_Action
 			$message = "\n\n" . $id .  "\n\n" . $this->view->message . "\n" . $errors->exception->getMessage() . "\nParamètres : " . print_r($params, true);
             $log->log($message, $priority);
             
-            if ($errors->type == Zend_Controller_Plugin_ErrorHandler::USER_EXCEPTION) {
+            if ($errors->type == Klee_Plugin_Main::USER_EXCEPTION) {
             	// Envoi d'un mail
             	$mailMessage = Klee_Util_Date::getCurrentDatetime() . $message;
             	Klee_Util_Mail::envoiMail('socle@kleegroup.com', 'Socle', 'alexis.morin@kleegroup.com', '[Socle]', "<pre>" . $mailMessage . "</pre>");
@@ -68,6 +68,7 @@ class ErrorController extends Zend_Controller_Action
             $this->view->exception = $errors->exception;
         }
 
+        $this->view->id = $id;
         $this->view->request = $errors->request;
     }
 
