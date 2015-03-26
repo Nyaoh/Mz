@@ -61,13 +61,7 @@ class ErrorController extends Zend_Controller_Action
      * Vérifie si un logger est déclaré dans la conf de l'application et le retourne en cas de besoin
      * @return boolean|Zend_Log
      */
-    public function getLog()
-    {
-        $bootstrap = $this->getInvokeArg('bootstrap');
-        if (!$bootstrap->hasResource('Log')) {
-            return false;
-        }
-        $log = $bootstrap->getResource('Log');
-        return $log;
+    public function getLog() {
+        return Zend_Registry::get('logger');
     }
 }
